@@ -29,18 +29,23 @@ import jakarta.validation.Valid;
 @RequestMapping("/categorias")
 public class CategoriaController {
 
+    // Permite utilizar os métodos do CategoriaService.
     @Autowired
     private CategoriaService categoriaService;
 
-    // POST - Cadastra uma nova categoria.
+    // POST - Cadastra uma categoria.
     @PostMapping
-    public ResponseEntity<?> cadastrar(@Valid @RequestBody Categoria categoria) {
+    public ResponseEntity<?> cadastrar(
+            @Valid @RequestBody Categoria categoria) {
 
         try {
+
             Categoria novaCategoria = categoriaService.salvar(categoria);
+
             return ResponseEntity.status(HttpStatus.CREATED).body(novaCategoria);
 
         } catch (IllegalArgumentException erro) {
+
             return criarRespostaErro(HttpStatus.BAD_REQUEST, erro.getMessage());
         }
     }
@@ -48,6 +53,7 @@ public class CategoriaController {
     // GET - Lista todas as categorias cadastradas.
     @GetMapping
     public ResponseEntity<List<Categoria>> listar() {
+
         return ResponseEntity.ok(categoriaService.listarTodas());
     }
 
@@ -56,10 +62,13 @@ public class CategoriaController {
     public ResponseEntity<?> buscarPorId(@PathVariable Long id) {
 
         try {
+
             return ResponseEntity.ok(categoriaService.buscarPorId(id));
 
         } catch (NoSuchElementException erro) {
-            return criarRespostaErro(HttpStatus.NOT_FOUND, erro.getMessage());
+
+            return criarRespostaErro(
+                    HttpStatus.NOT_FOUND, erro.getMessage());
         }
     }
 
@@ -68,13 +77,17 @@ public class CategoriaController {
     public ResponseEntity<?> atualizar(@PathVariable Long id,@Valid @RequestBody Categoria categoria) {
 
         try {
+
             Categoria atualizada = categoriaService.atualizar(id, categoria);
+
             return ResponseEntity.ok(atualizada);
 
         } catch (NoSuchElementException erro) {
+
             return criarRespostaErro(HttpStatus.NOT_FOUND, erro.getMessage());
 
         } catch (IllegalArgumentException erro) {
+
             return criarRespostaErro(HttpStatus.BAD_REQUEST, erro.getMessage());
         }
     }
@@ -84,31 +97,37 @@ public class CategoriaController {
     public ResponseEntity<?> excluir(@PathVariable Long id) {
 
         try {
+
+            // O Service verifica se existem produtos vinculados.
             categoriaService.excluir(id);
 
             return ResponseEntity.ok("Categoria excluída com sucesso!");
 
         } catch (NoSuchElementException erro) {
+
+            // Retorna 404 quando a categoria não existe.
             return criarRespostaErro(HttpStatus.NOT_FOUND, erro.getMessage());
+
+        } catch (IllegalArgumentException erro) {
+
+            // Retorna 400 quando existem produtos vinculados.
+            return criarRespostaErro(HttpStatus.BAD_REQUEST, erro.getMessage());
         }
     }
 
-    // Trata os erros gerados pela anotação @Valid.
-    // Exemplo: nome vazio, nulo ou contendo apenas espaços.
+    // Trata erros das anotações de validação, como @NotBlank.
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<?> tratarValidacao(MethodArgumentNotValidException erro) {
 
+        // Recupera a mensagem da primeira validação inválida.
         String mensagem = erro.getBindingResult().getFieldErrors().get(0).getDefaultMessage();
 
         return criarRespostaErro(HttpStatus.BAD_REQUEST, mensagem);
     }
 
-    // Monta uma resposta de erro em formato JSON.
-    // Este método evita repetir a criação do JSON em vários lugares.
+    // Cria respostas de erro em formato JSON.
     private ResponseEntity<?> criarRespostaErro(HttpStatus status, String mensagem) {
-
         Map<String, String> resposta = new HashMap<>();
-
         resposta.put("erro", mensagem);
 
         return ResponseEntity.status(status).body(resposta);

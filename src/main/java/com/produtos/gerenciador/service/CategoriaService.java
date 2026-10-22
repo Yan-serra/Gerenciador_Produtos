@@ -9,76 +9,99 @@ import org.springframework.stereotype.Service;
 
 import com.produtos.gerenciador.model.Categoria;
 import com.produtos.gerenciador.repository.CategoriaRepository;
+import com.produtos.gerenciador.repository.ProdutoRepository;
 
 @Service
 public class CategoriaService {
 
+    // Repository responsável pelas operações de Categoria.
     @Autowired
     private CategoriaRepository categoriaRepository;
 
-    // Cadastra uma nova categoria.
+    // Repository utilizado para verificar produtos vinculados.
+    @Autowired
+    private ProdutoRepository produtoRepository;
+
+    // POST - Cadastra uma nova categoria.
     public Categoria salvar(Categoria categoria) {
 
-        // Verifica se o nome está vazio.
+        // Verifica se o nome foi preenchido.
         validarNome(categoria.getNome());
 
-        // Impede o cadastro de categorias com nomes repetidos.
-        if (categoriaRepository.existsByNomeIgnoreCase(categoria.getNome().trim())) {
-        	throw new IllegalArgumentException("Já existe uma categoria com esse nome.");
+        // Remove espaços no início e no final.
+        String nome = categoria.getNome().trim();
+
+        // Impede o cadastro de nomes duplicados.
+        if (categoriaRepository.existsByNomeIgnoreCase(nome)) {
+            throw new IllegalArgumentException("Já existe uma categoria com esse nome.");
         }
 
-        // Remove espaços desnecessários no começo e no fim.
-        categoria.setNome(categoria.getNome().trim());
+        // Define o nome tratado antes de salvar.
+        categoria.setNome(nome);
+
+        // O banco gera automaticamente o ID da nova categoria.
+        categoria.setId(null);
 
         return categoriaRepository.save(categoria);
     }
 
-    // Retorna todas as categorias cadastradas.
+    // GET - Lista todas as categorias.
     public List<Categoria> listarTodas() {
+
         return categoriaRepository.findAll();
     }
 
-    // Procura uma categoria pelo identificador.
+    // GET - Busca uma categoria pelo ID.
     public Categoria buscarPorId(Long id) {
 
         return categoriaRepository.findById(id).orElseThrow(() -> new NoSuchElementException("Categoria não encontrada."));
     }
 
-    // Atualiza os dados de uma categoria existente.
+    // PUT - Atualiza uma categoria existente.
     public Categoria atualizar(Long id, Categoria dadosAtualizados) {
 
-        // Verifica se a categoria existe.
+        // Confirma que a categoria existe.
         Categoria categoria = buscarPorId(id);
 
-        // Valida o novo nome.
+        // Verifica se o novo nome é válido.
         validarNome(dadosAtualizados.getNome());
-
         String novoNome = dadosAtualizados.getNome().trim();
 
         // Impede utilizar o nome de outra categoria.
-        if (categoriaRepository.existsByNomeIgnoreCaseAndIdNot(
-                novoNome, id)) { throw new IllegalArgumentException("Já existe outra categoria com esse nome.");
+        // O próprio registro fica fora dessa verificação.
+        if (categoriaRepository.existsByNomeIgnoreCaseAndIdNot(novoNome, id)) {throw new IllegalArgumentException(
+                    "Já existe outra categoria com esse nome.");
         }
 
-        // Altera somente o nome da categoria encontrada.
+        // Atualiza apenas o nome.
         categoria.setNome(novoNome);
 
         return categoriaRepository.save(categoria);
     }
 
-    // Exclui uma categoria pelo identificador.
+    // DELETE - Exclui uma categoria.
     public void excluir(Long id) {
 
-        // Verifica se a categoria existe antes da exclusão.
+        // Confirma que a categoria existe.
         Categoria categoria = buscarPorId(id);
 
+        // Impede a exclusão de categorias com produtos associados.
+        if (produtoRepository.existsByCategoriaId(id)) {
+
+            throw new IllegalArgumentException(
+                    "Não é possível excluir uma categoria que possui produtos cadastrados.");
+        }
+
+        // Exclui somente quando não existem produtos vinculados.
         categoriaRepository.delete(categoria);
     }
 
-    // Método auxiliar para validar o nome.
+    // Método auxiliar para verificar se o nome é válido.
     private void validarNome(String nome) {
 
-        if (nome == null || nome.isBlank()) {throw new IllegalArgumentException("O nome da categoria é obrigatório.");
+        if (nome == null || nome.isBlank()) {
+
+            throw new IllegalArgumentException("O nome da categoria é obrigatório.");
         }
     }
 }
