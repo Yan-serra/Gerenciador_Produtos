@@ -9,6 +9,7 @@ import java.util.NoSuchElementException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -29,104 +30,100 @@ import jakarta.validation.Valid;
 @RequestMapping("/categorias")
 public class CategoriaController {
 
-    // Permite utilizar os métodos do CategoriaService.
     @Autowired
     private CategoriaService categoriaService;
 
-    // POST - Cadastra uma categoria.
+    // Cadastra uma categoria.
     @PostMapping
-    public ResponseEntity<?> cadastrar(
-            @Valid @RequestBody Categoria categoria) {
+    public ResponseEntity<?> cadastrar(@Valid @RequestBody Categoria categoria) {
 
         try {
-
             Categoria novaCategoria = categoriaService.salvar(categoria);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(novaCategoria);
 
         } catch (IllegalArgumentException erro) {
-
             return criarRespostaErro(HttpStatus.BAD_REQUEST, erro.getMessage());
         }
     }
 
-    // GET - Lista todas as categorias cadastradas.
+    // Lista todas as categorias.
     @GetMapping
     public ResponseEntity<List<Categoria>> listar() {
-
         return ResponseEntity.ok(categoriaService.listarTodas());
     }
 
-    // GET - Busca uma categoria pelo ID.
+    // Busca uma categoria pelo ID.
     @GetMapping("/{id}")
     public ResponseEntity<?> buscarPorId(@PathVariable Long id) {
 
         try {
-
             return ResponseEntity.ok(categoriaService.buscarPorId(id));
 
         } catch (NoSuchElementException erro) {
-
-            return criarRespostaErro(
-                    HttpStatus.NOT_FOUND, erro.getMessage());
+            return criarRespostaErro(HttpStatus.NOT_FOUND, erro.getMessage());
         }
     }
 
-    // PUT - Atualiza uma categoria existente.
+    // Atualiza uma categoria.
     @PutMapping("/{id}")
     public ResponseEntity<?> atualizar(@PathVariable Long id,@Valid @RequestBody Categoria categoria) {
 
         try {
-
             Categoria atualizada = categoriaService.atualizar(id, categoria);
 
             return ResponseEntity.ok(atualizada);
 
         } catch (NoSuchElementException erro) {
-
             return criarRespostaErro(HttpStatus.NOT_FOUND, erro.getMessage());
 
         } catch (IllegalArgumentException erro) {
-
             return criarRespostaErro(HttpStatus.BAD_REQUEST, erro.getMessage());
         }
     }
 
-    // DELETE - Exclui uma categoria pelo ID.
+    // Exclui uma categoria sem produtos vinculados.
     @DeleteMapping("/{id}")
     public ResponseEntity<?> excluir(@PathVariable Long id) {
 
         try {
-
-            // O Service verifica se existem produtos vinculados.
             categoriaService.excluir(id);
 
             return ResponseEntity.ok("Categoria excluída com sucesso!");
 
         } catch (NoSuchElementException erro) {
-
-            // Retorna 404 quando a categoria não existe.
             return criarRespostaErro(HttpStatus.NOT_FOUND, erro.getMessage());
 
         } catch (IllegalArgumentException erro) {
-
-            // Retorna 400 quando existem produtos vinculados.
             return criarRespostaErro(HttpStatus.BAD_REQUEST, erro.getMessage());
         }
     }
 
-    // Trata erros das anotações de validação, como @NotBlank.
+    // Trata campos inválidos.
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<?> tratarValidacao(MethodArgumentNotValidException erro) {
 
-        // Recupera a mensagem da primeira validação inválida.
-        String mensagem = erro.getBindingResult().getFieldErrors().get(0).getDefaultMessage();
+        String mensagem = erro.getBindingResult()
+                .getFieldErrors()
+                .get(0)
+                .getDefaultMessage();
 
         return criarRespostaErro(HttpStatus.BAD_REQUEST, mensagem);
     }
 
-    // Cria respostas de erro em formato JSON.
+    // Trata JSON incompleto ou malformado.
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<?> tratarJsonInvalido(
+            HttpMessageNotReadableException erro) {
+
+        return criarRespostaErro(
+                HttpStatus.BAD_REQUEST,
+                "JSON inválido. Verifique os dados enviados.");
+    }
+
+    // Cria uma resposta de erro em JSON.
     private ResponseEntity<?> criarRespostaErro(HttpStatus status, String mensagem) {
+
         Map<String, String> resposta = new HashMap<>();
         resposta.put("erro", mensagem);
 

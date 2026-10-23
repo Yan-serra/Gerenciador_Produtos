@@ -9,6 +9,7 @@ import java.util.NoSuchElementException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -30,11 +31,10 @@ import jakarta.validation.Valid;
 @RequestMapping("/produtos")
 public class ProdutoController {
 
-    // Permite utilizar os métodos do ProdutoService.
     @Autowired
     private ProdutoService produtoService;
 
-    // POST - Cadastra um novo produto.
+    // Cadastra um produto.
     @PostMapping
     public ResponseEntity<?> cadastrar(@Valid @RequestBody Produto produto) {
 
@@ -51,14 +51,13 @@ public class ProdutoController {
         }
     }
 
-    // GET - Lista todos os produtos.
+    // Lista todos os produtos.
     @GetMapping
     public ResponseEntity<List<Produto>> listar() {
-
         return ResponseEntity.ok(produtoService.listarTodos());
     }
 
-    // GET - Busca um produto pelo identificador.
+    // Busca um produto pelo ID.
     @GetMapping("/{id}")
     public ResponseEntity<?> buscarPorId(@PathVariable Long id) {
 
@@ -70,20 +69,19 @@ public class ProdutoController {
         }
     }
 
-    // GET - Filtra produtos pelo ID da categoria.
+    // Lista os produtos de uma categoria.
     @GetMapping("/categoria")
     public ResponseEntity<?> listarPorCategoria(@RequestParam Long categoriaId) {
 
         try {
-            return ResponseEntity.ok(
-                    produtoService.listarPorCategoria(categoriaId));
+            return ResponseEntity.ok(produtoService.listarPorCategoria(categoriaId));
 
         } catch (NoSuchElementException erro) {
             return criarRespostaErro(HttpStatus.NOT_FOUND, erro.getMessage());
         }
     }
 
-    // PUT - Atualiza um produto existente.
+    // Atualiza um produto.
     @PutMapping("/{id}")
     public ResponseEntity<?> atualizar(@PathVariable Long id,@Valid @RequestBody Produto produto) {
 
@@ -100,7 +98,7 @@ public class ProdutoController {
         }
     }
 
-    // DELETE - Exclui um produto existente.
+    // Exclui um produto.
     @DeleteMapping("/{id}")
     public ResponseEntity<?> excluir(@PathVariable Long id) {
 
@@ -114,18 +112,29 @@ public class ProdutoController {
         }
     }
 
-    // Trata erros por nome vazio ou preço nulo
+    // Trata campos inválidos.
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<?> tratarValidacao(MethodArgumentNotValidException erro) {
+    public ResponseEntity<?> tratarValidacao(
+            MethodArgumentNotValidException erro) {
 
-        // Recupera a mensagem da primeira validação inválida.
-        String mensagem = erro.getBindingResult().getFieldErrors().get(0).getDefaultMessage();
+        String mensagem = erro.getBindingResult()
+                .getFieldErrors()
+                .get(0)
+                .getDefaultMessage();
 
         return criarRespostaErro(HttpStatus.BAD_REQUEST, mensagem);
     }
 
-    // Cria uma resposta JSON padronizada para os erros.
+    // Trata JSON incompleto ou malformado.
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<?> tratarJsonInvalido(HttpMessageNotReadableException erro) {
+
+        return criarRespostaErro(HttpStatus.BAD_REQUEST,"JSON inválido. Verifique os dados enviados.");
+    }
+
+    // Cria uma mensagem de erro em JSON.
     private ResponseEntity<?> criarRespostaErro(HttpStatus status, String mensagem) {
+
         Map<String, String> resposta = new HashMap<>();
         resposta.put("erro", mensagem);
 
